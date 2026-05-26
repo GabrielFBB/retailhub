@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Inputs com texto visível (evita conflito com modo escuro do sistema) */
+input,
+textarea,
+select {
+  color: #18181b;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #71717a;
+}
