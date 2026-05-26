@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SalesChart } from "@/components/SalesChart";
-import type { DailySale } from "@/lib/mock-data";
+import type { DailySale, Product } from "@/lib/mock-data";
 
 type Alert = {
   id: string;
@@ -29,27 +29,84 @@ function friendlyDbError(message: string) {
 
 export function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saleError, setSaleError] = useState<string | null>(null);
+  const [saleSuccess, setSaleSuccess] = useState<string | null>(null);
+  const [productId, setProductId] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [saleSubmitting, setSaleSubmitting] = useState(false);
+
+  const loadDashboard = useCallback(async () => {
+    const res = await fetch("/api/dashboard");
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(
+        typeof json.error === "string" ? json.error : "Erro ao carregar dashboard."
+      );
+    }
+    setData(json);
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    const res = await fetch("/api/products");
+    const json = await res.json();
+    if (!res.ok) return;
+    if (Array.isArray(json)) setProducts(json);
+  }, []);
 
   useEffect(() => {
-    fetch("/api/dashboard")
-      .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(
-            typeof json.error === "string" ? json.error : "Erro ao carregar dashboard."
-          );
-        }
-        setData(json);
-      })
+    Promise.all([loadDashboard(), loadProducts()])
       .catch((err) => {
         setError(
           friendlyDbError(err instanceof Error ? err.message : "Erro ao carregar dashboard.")
         );
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadDashboard, loadProducts]);
+
+  async function handleRegisterSale(e: React.FormEvent) {
+    e.preventDefault();
+    setSaleError(null);
+    setSaleSuccess(null);
+
+    const qty = parseInt(quantity, 10);
+    if (!productId) {
+      setSaleError("Escolhe um produto.");
+      return;
+    }
+    if (Number.isNaN(qty) || qty < 1) {
+      setSaleError("Quantidade inválida.");
+      return;
+    }
+
+    setSaleSubmitting(true);
+    try {
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: qty }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setSaleError(typeof json.error === "string" ? json.error : "Erro ao registar venda.");
+        return;
+      }
+
+      setSaleSuccess(
+        `Venda registada: ${json.quantity}× ${json.productName} (${Number(json.lineTotal).toFixed(2)} €).`
+      );
+      setQuantity("1");
+      await loadDashboard();
+      await loadProducts();
+    } catch {
+      setSaleError("Não foi possível ligar ao servidor.");
+    } finally {
+      setSaleSubmitting(false);
+    }
+  }
 
   if (loading) {
     return <p className="text-sm text-zinc-500">A carregar dashboard...</p>;
@@ -83,6 +140,79 @@ export function DashboardClient() {
           <p className="mt-1 text-2xl font-bold text-amber-600">{data.lowStockCount}</p>
         </div>
       </div>
+
+      <section className="mt-8 rounded-lg border border-zinc-200 bg-white p-4">
+        <h2 className="text-lg font-semibold">Registar venda</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Escolhe o produto e a quantidade. O stock baixa e o total de hoje aumenta no gráfico.
+        </p>
+
+        {saleError && (
+          <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {saleError}
+          </p>
+        )}
+        {saleSuccess && (
+          <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {saleSuccess}
+          </p>
+        )}
+
+        <form
+          onSubmit={handleRegisterSale}
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        >
+          <div className="min-w-[200px] flex-1">
+            <label htmlFor="sale-product" className="block text-sm font-medium text-zinc-700">
+              Produto
+            </label>
+            <select
+              id="sale-product"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
+            >
+              <option value="">— Escolher —</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.sku}) — {p.price.toFixed(2)} € · stock {p.stock}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-28">
+            <label htmlFor="sale-qty" className="block text-sm font-medium text-zinc-700">
+              Quantidade
+            </label>
+            <input
+              id="sale-qty"
+              type="number"
+              min={1}
+              step={1}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saleSubmitting || products.length === 0}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60"
+          >
+            {saleSubmitting ? "A registar..." : "Registar venda"}
+          </button>
+        </form>
+
+        {products.length === 0 && (
+          <p className="mt-3 text-sm text-zinc-500">
+            Não há produtos.{" "}
+            <Link href="/inventory" className="font-medium text-zinc-900 underline">
+              Adiciona no inventário
+            </Link>
+            .
+          </p>
+        )}
+      </section>
 
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">Vendas diárias</h2>

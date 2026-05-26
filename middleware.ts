@@ -20,7 +20,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/dashboard") || pathname.startsWith("/inventory");
   const isProtectedApi =
     pathname.startsWith("/api/products") ||
-    pathname.startsWith("/api/dashboard");
+    pathname.startsWith("/api/dashboard") ||
+    pathname.startsWith("/api/sales");
 
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();
@@ -44,6 +45,8 @@ export const config = {
     "/inventory/:path*",
     "/api/products/:path*",
     "/api/dashboard/:path*",
+    "/api/sales",
+    "/api/sales/:path*",
     "/login",
     "/register",
   ],
