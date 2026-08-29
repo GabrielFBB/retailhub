@@ -2,6 +2,8 @@
 
 Sistema de gestão de inventário e vendas para pequeno retalho. Centraliza produtos, stock e registo de vendas num só sítio, em vez de folhas de cálculo dispersas.
 
+**Demo:** [retailhub-olive.vercel.app](https://retailhub-olive.vercel.app)
+
 ## Funcionalidades
 
 **Autenticação** — registo e login com palavras-passe encriptadas com bcrypt, sessão em JWT guardado em cookie httpOnly, e middleware que protege as rotas privadas.
