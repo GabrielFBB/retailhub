@@ -1,4 +1,4 @@
-import type { DailySale } from "@/lib/mock-data";
+import type { DailySale } from "@/lib/types";
 
 type Props = {
   sales: DailySale[];

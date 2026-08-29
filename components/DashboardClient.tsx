@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { SalesChart } from "@/components/SalesChart";
-import type { DailySale, Product } from "@/lib/mock-data";
+import type { DailySale, Product } from "@/lib/types";
 
 type Alert = {
   id: string;

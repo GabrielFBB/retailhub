@@ -1,4 +1,4 @@
-import type { Product } from "@/lib/mock-data";
+import type { Product } from "@/lib/types";
 
 type Props = {
   products: Product[];

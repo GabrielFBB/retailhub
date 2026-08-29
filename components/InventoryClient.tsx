@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ProductTable } from "@/components/ProductTable";
-import type { Product } from "@/lib/mock-data";
+import type { Product } from "@/lib/types";
 
 function friendlyDbError(message: string) {
   if (message.includes("SEU_CLUSTER") || message.includes("ENOTFOUND")) {
