@@ -20,6 +20,10 @@ type DashboardData = {
   alerts: Alert[];
 };
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function friendlyDbError(message: string) {
   if (message.includes("SEU_CLUSTER") || message.includes("ENOTFOUND")) {
     return "Ligação ao MongoDB incorreta. Verifica o .env.local e reinicia npm run dev.";
@@ -36,6 +40,7 @@ export function DashboardClient() {
   const [saleSuccess, setSaleSuccess] = useState<string | null>(null);
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [saleDate, setSaleDate] = useState(todayKey());
   const [saleSubmitting, setSaleSubmitting] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -86,7 +91,7 @@ export function DashboardClient() {
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity: qty }),
+        body: JSON.stringify({ productId, quantity: qty, date: saleDate }),
       });
       const json = await res.json();
 
@@ -95,10 +100,12 @@ export function DashboardClient() {
         return;
       }
 
+      const quando = json.date === todayKey() ? "hoje" : `em ${json.date}`;
       setSaleSuccess(
-        `Venda registada: ${json.quantity}× ${json.productName} (${Number(json.lineTotal).toFixed(2)} €).`
+        `Venda registada ${quando}: ${json.quantity}× ${json.productName} (${Number(json.lineTotal).toFixed(2)} €).`
       );
       setQuantity("1");
+      setSaleDate(todayKey());
       await loadDashboard();
       await loadProducts();
     } catch {
@@ -144,7 +151,7 @@ export function DashboardClient() {
       <section className="mt-8 rounded-lg border border-zinc-200 bg-white p-4">
         <h2 className="text-lg font-semibold">Registar venda</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Escolhe o produto e a quantidade. O stock baixa e o total de hoje aumenta no gráfico.
+          Escolhe o produto e a quantidade. A data vem preenchida com hoje, mas podes registar uma venda de um dia anterior.
         </p>
 
         {saleError && (
@@ -191,6 +198,19 @@ export function DashboardClient() {
               step={1}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
+            />
+          </div>
+          <div className="w-40">
+            <label htmlFor="sale-date" className="block text-sm font-medium text-zinc-700">
+              Data
+            </label>
+            <input
+              id="sale-date"
+              type="date"
+              value={saleDate}
+              max={todayKey()}
+              onChange={(e) => setSaleDate(e.target.value)}
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
             />
           </div>

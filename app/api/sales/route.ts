@@ -9,6 +9,12 @@ function todayDateKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isValidDateKey(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(value + "T12:00:00");
+  return !Number.isNaN(d.getTime());
+}
+
 export async function POST(request: Request) {
   const { userId, response } = await requireUser();
   if (response) return response;
@@ -19,6 +25,12 @@ export async function POST(request: Request) {
       typeof body.productId === "string" ? body.productId.trim() : "";
     const quantity = Number(body.quantity);
 
+    const today = todayDateKey();
+    const date =
+      typeof body.date === "string" && body.date.trim() !== ""
+        ? body.date.trim()
+        : today;
+
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return NextResponse.json({ error: "Produto invalido." }, { status: 400 });
     }
@@ -26,6 +38,17 @@ export async function POST(request: Request) {
     if (!Number.isFinite(quantity) || quantity < 1 || !Number.isInteger(quantity)) {
       return NextResponse.json(
         { error: "Quantidade invalida (usa um numero inteiro maior que zero)." },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidDateKey(date)) {
+      return NextResponse.json({ error: "Data invalida." }, { status: 400 });
+    }
+
+    if (date > today) {
+      return NextResponse.json(
+        { error: "Nao podes registar uma venda numa data futura." },
         { status: 400 }
       );
     }
@@ -59,7 +82,6 @@ export async function POST(request: Request) {
       }
 
       const lineTotal = Math.round(product.price * quantity * 100) / 100;
-      const date = todayDateKey();
 
       await Product.findOneAndUpdate(
         { _id: productId, user: userId },
