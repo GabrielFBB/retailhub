@@ -62,7 +62,10 @@ export async function GET() {
       alerts,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(error);
+    return NextResponse.json(
+      { error: "Ocorreu um erro no servidor. Tenta novamente." },
+      { status: 500 }
+    );
   }
 }

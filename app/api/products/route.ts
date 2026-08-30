@@ -30,8 +30,11 @@ export async function GET() {
       .lean();
     return NextResponse.json(products.map(serializeProduct));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(error);
+    return NextResponse.json(
+      { error: "Ocorreu um erro no servidor. Tenta novamente." },
+      { status: 500 }
+    );
   }
 }
 
@@ -81,7 +84,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(error);
+    return NextResponse.json(
+      { error: "Ocorreu um erro no servidor. Tenta novamente." },
+      { status: 500 }
+    );
   }
 }

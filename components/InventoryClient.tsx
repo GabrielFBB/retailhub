@@ -4,12 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ProductTable } from "@/components/ProductTable";
 import type { Product } from "@/lib/types";
 
-function friendlyDbError(message: string) {
-  if (message.includes("SEU_CLUSTER") || message.includes("ENOTFOUND")) {
-    return "Ligação ao MongoDB incorreta. Abre .env.local e cola a URI real do Atlas (sem SEU_CLUSTER). Depois reinicia: npm run dev.";
-  }
-  return message;
-}
+
 
 export function InventoryClient() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -38,7 +33,7 @@ export function InventoryClient() {
           typeof data.error === "string"
             ? data.error
             : "Erro ao carregar produtos.";
-        setError(friendlyDbError(msg));
+        setError(msg);
         setProducts([]);
         return;
       }
@@ -51,7 +46,7 @@ export function InventoryClient() {
 
       setProducts(data);
     } catch {
-      setError("Não foi possível ligar ao servidor. Corre npm run dev.");
+      setError("Não foi possível ligar ao servidor.");
       setProducts([]);
     }
   }, []);
@@ -112,7 +107,7 @@ export function InventoryClient() {
           typeof data.error === "string"
             ? data.error
             : "Erro ao adicionar produto.";
-        setError(friendlyDbError(msg));
+        setError(msg);
         return;
       }
 
@@ -124,7 +119,7 @@ export function InventoryClient() {
       setSuccess("Produto adicionado com sucesso!");
       await loadProducts();
     } catch {
-      setError("Falha na ligação. Confirma que npm run dev está a correr.");
+      setError("Não foi possível ligar ao servidor.");
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +173,7 @@ export function InventoryClient() {
           typeof data.error === "string"
             ? data.error
             : "Erro ao guardar alterações.";
-        setError(friendlyDbError(msg));
+        setError(msg);
         return;
       }
 
@@ -191,7 +186,7 @@ export function InventoryClient() {
       setSuccess("Produto atualizado com sucesso!");
       await loadProducts();
     } catch {
-      setError("Falha na ligação. Confirma que npm run dev está a correr.");
+      setError("Não foi possível ligar ao servidor.");
     } finally {
       setSubmitting(false);
     }

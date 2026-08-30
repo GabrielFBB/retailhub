@@ -24,12 +24,7 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function friendlyDbError(message: string) {
-  if (message.includes("SEU_CLUSTER") || message.includes("ENOTFOUND")) {
-    return "Ligação ao MongoDB incorreta. Verifica o .env.local e reinicia npm run dev.";
-  }
-  return message;
-}
+
 
 export function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -65,7 +60,7 @@ export function DashboardClient() {
     Promise.all([loadDashboard(), loadProducts()])
       .catch((err) => {
         setError(
-          friendlyDbError(err instanceof Error ? err.message : "Erro ao carregar dashboard.")
+          err instanceof Error ? err.message : "Erro ao carregar dashboard."
         );
       })
       .finally(() => setLoading(false));
