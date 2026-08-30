@@ -2,25 +2,30 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/lib/models/Product";
+import { requireUser } from "@/lib/api-auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     const { id } = await context.params;
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: "ID inválido." }, { status: 400 });
+      return NextResponse.json({ error: "ID invalido." }, { status: 400 });
     }
 
     await connectDB();
-    const deleted = await Product.findByIdAndDelete(id);
+    // o filtro pelo utilizador vai na query: um produto de outra conta
+    // simplesmente nao existe do ponto de vista desta sessao
+    const deleted = await Product.findOneAndDelete({ _id: id, user: userId });
 
     if (!deleted) {
       return NextResponse.json(
-        { error: "Produto não encontrado." },
+        { error: "Produto nao encontrado." },
         { status: 404 }
       );
     }
@@ -33,11 +38,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     const { id } = await context.params;
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: "ID inválido." }, { status: 400 });
+      return NextResponse.json({ error: "ID invalido." }, { status: 400 });
     }
 
     const body = await request.json();
@@ -48,32 +55,32 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (!name || !sku) {
       return NextResponse.json(
-        { error: "Nome e SKU são obrigatórios." },
+        { error: "Nome e SKU sao obrigatorios." },
         { status: 400 }
       );
     }
 
     if (!Number.isFinite(price) || price < 0) {
-      return NextResponse.json({ error: "Preço inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Preco invalido." }, { status: 400 });
     }
 
     if (!Number.isFinite(stock) || stock < 0 || !Number.isInteger(stock)) {
       return NextResponse.json(
-        { error: "Stock inválido (use número inteiro)." },
+        { error: "Stock invalido (use numero inteiro)." },
         { status: 400 }
       );
     }
 
     await connectDB();
-    const updated = await Product.findByIdAndUpdate(
-      id,
+    const updated = await Product.findOneAndUpdate(
+      { _id: id, user: userId },
       { name, sku, price, stock },
       { new: true, runValidators: true }
     );
 
     if (!updated) {
       return NextResponse.json(
-        { error: "Produto não encontrado." },
+        { error: "Produto nao encontrado." },
         { status: 404 }
       );
     }
@@ -90,10 +97,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       error &&
       typeof error === "object" &&
       "code" in error &&
-      (error as any).code === 11000
+      (error as { code?: number }).code === 11000
     ) {
       return NextResponse.json(
-        { error: "Já existe um produto com este SKU." },
+        { error: "Ja tens um produto com este SKU." },
         { status: 409 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/lib/models/Product";
+import { requireUser } from "@/lib/api-auth";
 
 function serializeProduct(doc: {
   _id: { toString(): string };
@@ -19,9 +20,14 @@ function serializeProduct(doc: {
 }
 
 export async function GET() {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     await connectDB();
-    const products = await Product.find().sort({ createdAt: -1 }).lean();
+    const products = await Product.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .lean();
     return NextResponse.json(products.map(serializeProduct));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
@@ -30,6 +36,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     await connectDB();
     const body = await request.json();
@@ -41,26 +50,23 @@ export async function POST(request: Request) {
 
     if (!name || !sku) {
       return NextResponse.json(
-        { error: "Nome e SKU são obrigatórios." },
+        { error: "Nome e SKU sao obrigatorios." },
         { status: 400 }
       );
     }
 
     if (!Number.isFinite(price) || price < 0) {
-      return NextResponse.json(
-        { error: "Preço inválido." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Preco invalido." }, { status: 400 });
     }
 
     if (!Number.isFinite(stock) || stock < 0) {
       return NextResponse.json(
-        { error: "Stock inválido (use número inteiro, ex: 10)." },
+        { error: "Stock invalido (use numero inteiro, ex: 10)." },
         { status: 400 }
       );
     }
 
-    const product = await Product.create({ name, sku, price, stock });
+    const product = await Product.create({ user: userId, name, sku, price, stock });
     return NextResponse.json(serializeProduct(product), { status: 201 });
   } catch (error) {
     if (
@@ -70,7 +76,7 @@ export async function POST(request: Request) {
       error.code === 11000
     ) {
       return NextResponse.json(
-        { error: "Já existe um produto com este SKU." },
+        { error: "Ja tens um produto com este SKU." },
         { status: 409 }
       );
     }

@@ -3,13 +3,16 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/lib/models/Product";
 import { Sale } from "@/lib/models/Sale";
+import { requireUser } from "@/lib/api-auth";
 
 function todayDateKey() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function POST(request: Request) {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     const body = await request.json();
     const productId =
@@ -17,12 +20,12 @@ export async function POST(request: Request) {
     const quantity = Number(body.quantity);
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return NextResponse.json({ error: "Produto inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Produto invalido." }, { status: 400 });
     }
 
     if (!Number.isFinite(quantity) || quantity < 1 || !Number.isInteger(quantity)) {
       return NextResponse.json(
-        { error: "Quantidade inválida (usa um número inteiro ≥ 1)." },
+        { error: "Quantidade invalida (usa um numero inteiro maior que zero)." },
         { status: 400 }
       );
     }
@@ -33,12 +36,14 @@ export async function POST(request: Request) {
     session.startTransaction();
 
     try {
-      const product = await Product.findById(productId).session(session).lean();
+      const product = await Product.findOne({ _id: productId, user: userId })
+        .session(session)
+        .lean();
 
       if (!product) {
         await session.abortTransaction();
         return NextResponse.json(
-          { error: "Produto não encontrado." },
+          { error: "Produto nao encontrado." },
           { status: 404 }
         );
       }
@@ -47,7 +52,7 @@ export async function POST(request: Request) {
         await session.abortTransaction();
         return NextResponse.json(
           {
-            error: `Stock insuficiente. Disponível: ${product.stock}, pedido: ${quantity}.`,
+            error: `Stock insuficiente. Disponivel: ${product.stock}, pedido: ${quantity}.`,
           },
           { status: 400 }
         );
@@ -56,14 +61,14 @@ export async function POST(request: Request) {
       const lineTotal = Math.round(product.price * quantity * 100) / 100;
       const date = todayDateKey();
 
-      await Product.findByIdAndUpdate(
-        productId,
+      await Product.findOneAndUpdate(
+        { _id: productId, user: userId },
         { $inc: { stock: -quantity } },
         { session }
       );
 
       await Sale.findOneAndUpdate(
-        { date },
+        { user: userId, date },
         { $inc: { total: lineTotal } },
         { upsert: true, new: true, session }
       );

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/lib/models/Product";
 import { Sale } from "@/lib/models/Sale";
+import { requireUser } from "@/lib/api-auth";
 
-const DEFAULT_TOTALS = [1240, 980, 1560, 1120, 1890, 1430, 1675];
+const LOW_STOCK_THRESHOLD = 10;
 
 function last7DayStrings() {
   const days: string[] = [];
@@ -15,26 +16,19 @@ function last7DayStrings() {
   return days;
 }
 
-async function seedSalesIfEmpty() {
-  const count = await Sale.countDocuments();
-  if (count > 0) return;
-
-  const days = last7DayStrings();
-  await Sale.insertMany(
-    days.map((date, index) => ({
-      date,
-      total: DEFAULT_TOTALS[index] ?? 1000,
-    }))
-  );
-}
-
 export async function GET() {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
   try {
     await connectDB();
-    await seedSalesIfEmpty();
 
     const days = last7DayStrings();
-    const salesDocs = await Sale.find({ date: { $in: days } }).lean();
+    const salesDocs = await Sale.find({
+      user: userId,
+      date: { $in: days },
+    }).lean();
+
     const salesByDate = new Map(salesDocs.map((s) => [s.date, s.total]));
 
     const dailySales = days.map((date) => ({
@@ -46,7 +40,10 @@ export async function GET() {
     const today = days[days.length - 1];
     const todayTotal = salesByDate.get(today) ?? 0;
 
-    const lowStockProducts = await Product.find({ stock: { $lt: 10 } })
+    const lowStockProducts = await Product.find({
+      user: userId,
+      stock: { $lt: LOW_STOCK_THRESHOLD },
+    })
       .sort({ stock: 1 })
       .lean();
 
