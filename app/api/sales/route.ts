@@ -15,6 +15,33 @@ function isValidDateKey(value: string) {
   return !Number.isNaN(d.getTime());
 }
 
+export async function GET() {
+  const { userId, response } = await requireUser();
+  if (response) return response;
+
+  try {
+    await connectDB();
+    const sales = await Sale.find({ user: userId })
+      .sort({ date: -1 })
+      .limit(60)
+      .lean();
+
+    return NextResponse.json(
+      sales.map((s) => ({
+        id: s._id.toString(),
+        date: s.date,
+        total: s.total,
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Ocorreu um erro no servidor. Tenta novamente." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
   const { userId, response } = await requireUser();
   if (response) return response;

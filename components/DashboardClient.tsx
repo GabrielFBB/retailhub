@@ -12,6 +12,12 @@ type Alert = {
   stock: number;
 };
 
+type SaleRecord = {
+  id: string;
+  date: string;
+  total: number;
+};
+
 type DashboardData = {
   dailySales: DailySale[];
   totalWeek: number;
@@ -37,6 +43,9 @@ export function DashboardClient() {
   const [quantity, setQuantity] = useState("1");
   const [saleDate, setSaleDate] = useState(todayKey());
   const [saleSubmitting, setSaleSubmitting] = useState(false);
+  const [salesLog, setSalesLog] = useState<SaleRecord[]>([]);
+  const [editingSale, setEditingSale] = useState<string | null>(null);
+  const [editTotal, setEditTotal] = useState("");
 
   const loadDashboard = useCallback(async () => {
     const res = await fetch("/api/dashboard");
@@ -49,6 +58,13 @@ export function DashboardClient() {
     setData(json);
   }, []);
 
+  const loadSalesLog = useCallback(async () => {
+    const res = await fetch("/api/sales");
+    if (!res.ok) return;
+    const json = await res.json();
+    if (Array.isArray(json)) setSalesLog(json);
+  }, []);
+
   const loadProducts = useCallback(async () => {
     const res = await fetch("/api/products");
     const json = await res.json();
@@ -57,14 +73,14 @@ export function DashboardClient() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadDashboard(), loadProducts()])
+    Promise.all([loadDashboard(), loadProducts(), loadSalesLog()])
       .catch((err) => {
         setError(
           err instanceof Error ? err.message : "Erro ao carregar dashboard."
         );
       })
       .finally(() => setLoading(false));
-  }, [loadDashboard, loadProducts]);
+  }, [loadDashboard, loadProducts, loadSalesLog]);
 
   async function handleRegisterSale(e: React.FormEvent) {
     e.preventDefault();
@@ -103,10 +119,54 @@ export function DashboardClient() {
       setSaleDate(todayKey());
       await loadDashboard();
       await loadProducts();
+      await loadSalesLog();
     } catch {
       setSaleError("Não foi possível ligar ao servidor.");
     } finally {
       setSaleSubmitting(false);
+    }
+  }
+
+  async function saveSaleEdit(id: string) {
+    const value = parseFloat(editTotal.replace(",", "."));
+    if (Number.isNaN(value) || value < 0) {
+      setSaleError("Total inválido.");
+      return;
+    }
+    setSaleError(null);
+    try {
+      const res = await fetch(`/api/sales/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ total: value }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        setSaleError(typeof json.error === "string" ? json.error : "Erro ao guardar.");
+        return;
+      }
+      setEditingSale(null);
+      await loadDashboard();
+      await loadSalesLog();
+    } catch {
+      setSaleError("Não foi possível ligar ao servidor.");
+    }
+  }
+
+  async function deleteSale(id: string) {
+    if (!confirm("Apagar o registo deste dia?")) return;
+    setSaleError(null);
+    try {
+      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        setSaleError(typeof json.error === "string" ? json.error : "Erro ao apagar.");
+        return;
+      }
+      await loadDashboard();
+      await loadSalesLog();
+    } catch {
+      setSaleError("Não foi possível ligar ao servidor.");
     }
   }
 
@@ -232,6 +292,72 @@ export function DashboardClient() {
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">Vendas diárias</h2>
         <SalesChart sales={data.dailySales} />
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold">Registos de vendas</h2>
+        {salesLog.length === 0 ? (
+          <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500">
+            Ainda não há vendas registadas.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white">
+            {salesLog.map((sale) => (
+              <li key={sale.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="font-medium text-zinc-900">{sale.date}</span>
+                {editingSale === sale.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editTotal}
+                      onChange={(e) => setEditTotal(e.target.value)}
+                      className="w-28 rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveSaleEdit(sale.id)}
+                      className="rounded-md bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-700"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSale(null)}
+                      className="text-xs text-zinc-500 hover:text-zinc-900"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <span className="font-semibold text-zinc-900">
+                      {sale.total.toLocaleString("pt-PT", { minimumFractionDigits: 2 })} €
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSale(sale.id);
+                        setEditTotal(String(sale.total));
+                      }}
+                      className="text-xs font-medium text-zinc-600 hover:text-zinc-900"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteSale(sale.id)}
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                    >
+                      Apagar
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-8">
