@@ -6,6 +6,22 @@ Sistema de gestão de inventário e vendas para pequeno retalho. Centraliza prod
 
 Para explorar sem criar conta, entra com o email `demo@retailhub.com` e a palavra-passe `demo12`.
 
+![Dashboard](docs/Dashboard1.png)
+
+## Ecrãs
+
+**Dashboard** — totais da semana e do dia, alertas de stock baixo e gráfico das vendas dos últimos sete dias.
+
+![Vendas diárias](docs/Dashboard2.png)
+
+**Registos de vendas** — cada venda guarda o produto, a quantidade e o preço unitário. Editar ajusta o stock pela diferença; apagar devolve as unidades ao produto.
+
+![Registos de vendas](docs/Vendas.png)
+
+**Inventário** — CRUD de produtos com estado de stock.
+
+![Inventário](docs/Inventario.png)
+
 ## Funcionalidades
 
 **Autenticação** — registo e login com palavras-passe encriptadas com bcrypt, sessão em JWT guardado em cookie httpOnly, e middleware que protege as rotas privadas.
