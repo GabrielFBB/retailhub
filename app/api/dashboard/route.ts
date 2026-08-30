@@ -24,19 +24,24 @@ export async function GET() {
     await connectDB();
 
     const days = last7DayStrings();
-    const salesDocs = await Sale.find({
-      user: userId,
-      date: { $in: days },
-    }).lean();
 
-    const salesByDate = new Map(salesDocs.map((s) => [s.date, s.total]));
+    // agregar os totais por dia: agora cada venda e um registo proprio
+    const grouped = await Sale.aggregate([
+      { $match: { user: new (await import("mongoose")).default.Types.ObjectId(userId), date: { $in: days } } },
+      { $group: { _id: "$date", total: { $sum: "$total" } } },
+    ]);
+
+    const salesByDate = new Map<string, number>(
+      grouped.map((g: { _id: string; total: number }) => [g._id, g.total])
+    );
 
     const dailySales = days.map((date) => ({
       date,
-      total: salesByDate.get(date) ?? 0,
+      total: Math.round((salesByDate.get(date) ?? 0) * 100) / 100,
     }));
 
-    const totalWeek = dailySales.reduce((acc, s) => acc + s.total, 0);
+    const totalWeek =
+      Math.round(dailySales.reduce((acc, s) => acc + s.total, 0) * 100) / 100;
     const today = days[days.length - 1];
     const todayTotal = salesByDate.get(today) ?? 0;
 
@@ -57,7 +62,7 @@ export async function GET() {
     return NextResponse.json({
       dailySales,
       totalWeek,
-      todayTotal,
+      todayTotal: Math.round(todayTotal * 100) / 100,
       lowStockCount: alerts.length,
       alerts,
     });

@@ -22,14 +22,18 @@ export async function GET() {
   try {
     await connectDB();
     const sales = await Sale.find({ user: userId })
-      .sort({ date: -1 })
-      .limit(60)
+      .sort({ date: -1, createdAt: -1 })
+      .limit(100)
       .lean();
 
     return NextResponse.json(
       sales.map((s) => ({
         id: s._id.toString(),
         date: s.date,
+        productName: s.productName,
+        sku: s.sku,
+        quantity: s.quantity,
+        unitPrice: s.unitPrice,
         total: s.total,
       }))
     );
@@ -108,7 +112,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const lineTotal = Math.round(product.price * quantity * 100) / 100;
+      const total = Math.round(product.price * quantity * 100) / 100;
 
       await Product.findOneAndUpdate(
         { _id: productId, user: userId },
@@ -116,10 +120,20 @@ export async function POST(request: Request) {
         { session }
       );
 
-      await Sale.findOneAndUpdate(
-        { user: userId, date },
-        { $inc: { total: lineTotal } },
-        { upsert: true, new: true, session }
+      await Sale.create(
+        [
+          {
+            user: userId,
+            product: productId,
+            productName: product.name,
+            sku: product.sku,
+            quantity,
+            unitPrice: product.price,
+            total,
+            date,
+          },
+        ],
+        { session }
       );
 
       await session.commitTransaction();
@@ -127,7 +141,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         date,
-        lineTotal,
+        lineTotal: total,
         productName: product.name,
         quantity,
         newStock: product.stock - quantity,
