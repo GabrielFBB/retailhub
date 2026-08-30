@@ -4,6 +4,8 @@ Sistema de gestão de inventário e vendas para pequeno retalho. Centraliza prod
 
 **Demo:** [retailhub-olive.vercel.app](https://retailhub-olive.vercel.app)
 
+Para explorar sem criar conta, entra com o email `demo@retailhub.com` e a palavra-passe `demo12`.
+
 ## Funcionalidades
 
 **Autenticação** — registo e login com palavras-passe encriptadas com bcrypt, sessão em JWT guardado em cookie httpOnly, e middleware que protege as rotas privadas.
